@@ -1,0 +1,101 @@
+#!/usr/bin/python
+# -*- coding: utf-8 -*-
+
+import csv
+import pyodbc
+import string
+import sys
+import glob
+import re
+import time
+from selenium import webdriver
+from selenium.webdriver.common.keys import Keys
+from selenium.webdriver.chrome.options import Options
+
+# Setando pasta onde vai ser salvo o CSV
+chromeOptions = webdriver.ChromeOptions()
+prefs = {"download.default_directory" : "C:\\Users\\andre.pereira\\Documents\\Python_Automacao\\"}
+chromeOptions.add_experimental_option("prefs",prefs)
+
+# Local do webdriver
+driver = webdriver.Chrome(executable_path='C:\\Users\\andre.pereira\\Documents\\Python_Automacao\\chromedriver.exe', chrome_options=chromeOptions)
+time.sleep(3)
+
+# Entra no link de download e loga com um usuário pra poder baixar a planilha
+
+try:
+    driver.get("https://docs.google.com/spreadsheets/d/1CDT9BveY390IWBdGmdz_w4CfJL4YFXGbj3Qp8PhFlT4/export?format=csv&id=1CDT9BveY390IWBdGmdz_w4CfJL4YFXGbj3Qp8PhFlT4&gid=810298653")
+    email = driver.find_element_by_id("identifierId")
+    time.sleep(3)
+    email.send_keys("email")
+    ButtonProximo = driver.find_element_by_id("identifierNext")
+    ButtonProximo.click()
+    time.sleep(5)
+    passwd = driver.find_element_by_xpath("//*[@type='password']")
+    passwd.send_keys("password")
+    time.sleep(3)
+    ButtonEntrar = driver.find_element_by_id("passwordNext")
+    ButtonEntrar.click()
+    time.sleep(15)
+    print("Link baixado com sucesso")
+except:
+    print("Ocorreu um erro ao baixar a planilha", sys.exc_info())
+
+#Pasta onde está o arquivo CSV
+PATH = ('C:\\Users\\andre.pereira\\Documents\\Python_Automacao\\')
+
+for file in glob.glob(PATH+"*.csv"):
+    #Encondig UTF8 para conseguir ler os caracteres especiais
+    with open(file, encoding="utf8") as csvfile:
+            next(csvfile)
+            next(csvfile)
+            readCSV = csv.reader(csvfile, delimiter=',')
+            CODCCUSTO_DB = []
+            CATEGORIA_DB = []
+            NATUREZA_DB = []
+            DESCRICAO_DB = []
+            VALOR_DB = []
+            DATA_DB = []
+            # SITUACAO_DB = []
+
+            for row in readCSV:
+                    CODCCUSTO = row[0]
+                    CATEGORIA = row[1]
+                    NATUREZA = row [2]
+                    DESCRICAO = row [3]
+                    VALOR = row [4]
+                    DATA = row [5]
+                    # SITUACAO = row [6]
+                    CSVForInsert = []
+
+                    CODCCUSTO_DB.append(CODCCUSTO)
+                    CATEGORIA_DB.append(CATEGORIA)
+                    NATUREZA_DB.append(NATUREZA)
+                    DESCRICAO_DB.append(DESCRICAO)
+                    VALOR_DB.append(VALOR)
+                    DATA_DB.append(DATA)
+                    # SITUACAO_DB.append(SITUACAO)
+
+                    for i in range(len(CODCCUSTO_DB) or len(CATEGORIA_DB) or len(NATUREZA_DB) or len(DESCRICAO_DB) or len(VALOR_DB) or len(DATA_DB)):
+                        CSVForInsert.append([CODCCUSTO_DB[i], CATEGORIA_DB[i], NATUREZA_DB[i], DESCRICAO_DB[i], VALOR_DB[i], DATA_DB[i]])
+            
+            server = 'server' 
+            database = 'database' 
+            username = 'username' 
+            password = 'password' 
+            cnxn = pyodbc.connect('DRIVER={ODBC Driver 17 for SQL Server};SERVER='+server+';DATABASE='+database+';UID='+username+';PWD='+ password)
+            cursor = cnxn.cursor()
+            try:
+                cursor.execute('TRUNCATE TABLE ORCADO_FORCADO')
+                cursor.executemany('''
+                            INSERT INTO ORCADO_FORCADO (CODCCUSTO, CATEGORIA, NATUREZA, DESCRICAO, VALOR, DATA, SITUACAO)
+                            VALUES
+                            (?,?,?,?,?,?,NULL)                
+                        '''
+                    , CSVForInsert)
+                cnxn.commit()
+                print("Dados inseridos com sucesso!")
+            except:
+                print("Ocorreu um erro ao inserir os dados", sys.exc_info())
+
+driver.quit()
